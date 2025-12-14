@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Descargar YouTube MP3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+
+<body class="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600"></div>
+    <div class="absolute inset-0 opacity-10 text-white text-7xl pointer-events-none">
+        <i class="fa-solid fa-music absolute top-10 left-10 rotate-12"></i>
+        <i class="fa-solid fa-file-audio absolute top-1/3 right-20 -rotate-12"></i>
+        <i class="fa-solid fa-headphones absolute bottom-20 left-1/4 rotate-6"></i>
+        <i class="fa-solid fa-music absolute bottom-10 right-10 -rotate-6"></i>
+    </div>
+
+    <div class="relative bg-white/90 backdrop-blur-md p-6 rounded-xl shadow-2xl w-full max-w-lg">
+        <h1 class="text-2xl font-bold mb-4 text-center flex items-center justify-center gap-2">
+            <i class="fa-brands fa-youtube text-red-600"></i> YouTube MP3 Downloader
+        </h1>
+
+        <div class="flex gap-2 mb-4">
+            <input id="urlInput" type="text" placeholder="Pega la URL de YouTube"
+                class="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300" />
+            <button id="btnLimpiar"
+                class="flex items-center justify-center bg-gray-400 text-white rounded px-4 py-2 hover:bg-gray-500 disabled:bg-gray-200 disabled:text-gray-400 transition">
+                <i class="fa-solid fa-eraser"></i>
+            </button>
+        </div>
+
+        <div class="flex gap-2 mb-4">
+            <button id="btnDescargar"
+                class="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:text-gray-200 transition">
+                <i class="fa-solid fa-download"></i> Descargar
+            </button>
+            <button id="btnCancelar"
+                class="flex-1 flex items-center justify-center gap-2 bg-gray-500 text-white py-2 rounded hover:bg-gray-600 disabled:bg-gray-300 disabled:text-gray-200 transition"
+                disabled>
+                <i class="fa-solid fa-xmark"></i> Cancelar
+            </button>
+        </div>
+
+        <div id="loading" class="hidden flex items-center justify-center mt-4">
+            <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"></path>
+            </svg>
+            <span class="ml-3 text-gray-700">Descargando y convirtiendo, espere por favor...</span>
+        </div>
+
+        <div id="alertSuccess" class="hidden mt-4 p-3 bg-green-100 text-green-800 rounded"></div>
+        <div id="alertError" class="hidden mt-4 p-3 bg-red-100 text-red-800 rounded"></div>
+    </div>
+
+    <script>
+        const urlBase = "http://localhost:3000/api";
+        const urlInput = document.getElementById("urlInput");
+        const btnDescargar = document.getElementById("btnDescargar");
+        const btnCancelar = document.getElementById("btnCancelar");
+        const btnLimpiar = document.getElementById("btnLimpiar");
+        const loading = document.getElementById("loading");
+        const alertSuccess = document.getElementById("alertSuccess");
+        const alertError = document.getElementById("alertError");
+
+        let controller = null;
+        let downloadId = null;
+
+        function resetMensajes() {
+            alertSuccess.classList.add("hidden");
+            alertError.classList.add("hidden");
+            alertSuccess.innerHTML = "";
+            alertError.innerHTML = "";
+        }
+
+        btnDescargar.addEventListener("click", async () => {
+            const url = urlInput.value.trim();
+            if (!url) {
+                alertError.classList.remove("hidden");
+                alertError.innerText = "Por favor ingrese una URL válida";
+                return;
+            }
+
+            resetMensajes();
+            btnDescargar.disabled = true;
+            btnLimpiar.disabled = true;
+            btnCancelar.disabled = false;
+            loading.classList.remove("hidden");
+
+            controller = new AbortController();
+
+            try {
+                const response = await axios.post(`${urlBase}/download`, { url }, { signal: controller.signal });
+                downloadId = response.data.id;
+
+                const result = await waitForDownloadCompletion(downloadId, controller.signal);
+
+                if (result.error) {
+                    alertError.classList.remove("hidden");
+                    alertError.innerText = result.error;
+                } else {
+                    alertSuccess.classList.remove("hidden");
+                    alertSuccess.innerHTML = `
+                        <strong>${result.message}</strong><br>
+                        🎵 Archivo: ${result.archivo}<br>
+                        🔊 Bitrate: ${result.bitrate}<br>
+                        ⏱️ Tiempo: ${result.tiempo}
+                    `;
+                }
+
+            } catch (err) {
+                if (axios.isCancel(err) || err.message === "Aborted") {
+                    alertError.classList.remove("hidden");
+                    alertError.innerText = "Descarga cancelada por el usuario";
+                } else {
+                    alertError.classList.remove("hidden");
+                    alertError.innerText = err?.response?.data?.error || err.message || "Ocurrió un error";
+                }
+            } finally {
+                btnDescargar.disabled = false;
+                btnCancelar.disabled = true;
+                btnLimpiar.disabled = false;
+                loading.classList.add("hidden");
+                controller = null;
+                downloadId = null;
+            }
+        });
+
+        btnCancelar.addEventListener("click", async () => {
+            if (controller) controller.abort();
+            if (downloadId) {
+                try {
+                    await axios.post(`${urlBase}/download/cancel/${downloadId}`);
+                } catch { }
+            }
+
+            urlInput.value = "";
+            resetMensajes();
+            btnDescargar.disabled = false;
+            btnCancelar.disabled = true;
+            btnLimpiar.disabled = false;
+            loading.classList.add("hidden");
+            controller = null;
+            downloadId = null;
+        });
+
+        btnLimpiar.addEventListener("click", () => {
+            urlInput.value = "";
+            resetMensajes();
+        });
+
+        function waitForDownloadCompletion(id, signal) {
+            return new Promise((resolve, reject) => {
+                const interval = setInterval(async () => {
+                    try {
+                        if (signal.aborted) {
+                            clearInterval(interval);
+                            reject(new Error("Aborted"));
+                            return;
+                        }
+                        const res = await axios.get(`${urlBase}/download/status/${id}`);
+                        if (res.data.completed) {
+                            clearInterval(interval);
+                            resolve(res.data);
+                        }
+                    } catch (err) {
+                        clearInterval(interval);
+                        reject(err);
+                    }
+                }, 1000);
+            });
+        }
+    </script>
+</body>
+
+</html>

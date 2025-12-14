@@ -1,18 +1,25 @@
-import { exec } from "child_process";
+import express from "express";
+import cors from "cors";
+import downloadRoutes from "./routes/download.routes.js";
+import dotenv from "dotenv";
 
-const url = "https://www.youtube.com/watch?v=3dXTNMOrd9k";
+dotenv.config();
 
-const ytDlpPath = `"C:\\yt-dlp\\yt-dlp.exe"`;
-const ffmpegPath = `"C:\\ffmpeg-8.0.1-full_build\\bin\\ffmpeg.exe"`;
+const app = express();
 
-exec(
-  `${ytDlpPath} -x --audio-format mp3 --ffmpeg-location ${ffmpegPath} --output "%(title)s.%(ext)s" "${url}"`,
-  (error, stdout, stderr) => {
-    if (error) {
-      console.error("Error:", error.message);
-      return;
-    }
-    console.log(stdout);
-    console.log("Descarga y conversión completadas");
-  }
-);
+const PORT = process.env.PORT || 3000;
+const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
+
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type"]
+}));
+
+app.use(express.json());
+
+app.use("/api/download", downloadRoutes);
+
+app.listen(PORT, () => {
+  console.log(`API corriendo en ${API_BASE_URL}`);
+});
