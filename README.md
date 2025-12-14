@@ -37,20 +37,10 @@ Este proyecto permite descargar audio de videos de YouTube y convertirlo automá
 
 ---
 
-## 4. Configurar proyecto Node.js
-
-1. Crear una carpeta para el proyecto, por ejemplo `C:\Users\USER\Desktop\youtube-audio`.  
-2. Abrir CMD o PowerShell y navegar a la carpeta creada.  
-3. Inicializar Node.js escribiendo `npm init -y`.  
-4. Crear un archivo `index.js` donde se escribirá el script de descarga y conversión de audio.  
-5. Configurar las rutas absolutas de yt-dlp y FFmpeg dentro del script para que el proyecto funcione correctamente.
-
----
-
-## 5. Ejecutar el proyecto
+## 4. Ejecutar el proyecto
 
 1. Abrir CMD o PowerShell y navegar a la carpeta del proyecto.  
 2. Ejecutar el script escribiendo `node index.js`.  
-3. El audio descargado se guardará automáticamente en la carpeta configurada dentro del script, normalmente con el nombre del video en formato MP3.  
+3. El audio descargado se guardará automáticamente en la descargas de tu pc, normalmente con el nombre del video en formato MP3.  
 
 ---
